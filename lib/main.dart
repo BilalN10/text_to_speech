@@ -9,13 +9,13 @@ import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:text_to_speech/text_to_speech.dart' as tts;
 
 void main() {
-  // runApp(
-  //   DevicePreview(
-  //     enabled: !kReleaseMode,
-  //     builder: (context) => const MyApp(), // Wrap your app
-  //   ),
-  // );
-  runApp(const MyApp());
+  runApp(
+    DevicePreview(
+      enabled: !kReleaseMode,
+      builder: (context) => const MyApp(), // Wrap your app
+    ),
+  );
+  //runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -28,13 +28,14 @@ class MyApp extends StatelessWidget {
       return GetMaterialApp(
         title: 'Typing',
         debugShowCheckedModeBanner: false,
-        // useInheritedMediaQuery: true,
-        // locale: DevicePreview.locale(context),
-        // builder: DevicePreview.appBuilder,
+        useInheritedMediaQuery: true,
+        locale: DevicePreview.locale(context),
+        builder: DevicePreview.appBuilder,
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
         home: KeyboardScreen(),
+        
       );
     });
   }
@@ -81,3 +82,47 @@ class _CheclState extends State<Checl> {
     );
   }
 }
+
+
+// index_3: 100,
+//               index_4: 100,
+//               index_5: 100,
+//               index_6: 100,
+//               index_7: 100,
+//               index_8: 100,
+//               index_9: 100,
+//               index_10: 100,
+//               index_11: 100,
+//               index_12: 100,
+//               index_13: 100,
+//               index_14: 100,
+//               index_15: 100,
+//               index_16: 100,
+//               index_17: 100,
+//               index_18: 100,
+//               index_19: 100,
+//               index_20: 100,
+//               index_21: 100,
+//               index_22: 100,
+//               index_23: 100,
+//               index_24: 100,
+//               index_25: 100,
+//               index_26: 100,
+//               index_27: 100,
+//               index_28: 100,
+//               index_29: 100,
+//               index_30: 100,
+//               index_31: 100,
+//               index_32: 100,
+//               index_33: 100,
+//               index_34: 100,
+//               index_35: 100,
+//               index_36: 100,
+//               index_37: 100,
+//               index_38: 100,
+//               index_39: 100,
+//               index_40: 100,
+//               index_41: 100,
+//               index_42: 100,
+//               index_43: 100,
+//               index_44: 100

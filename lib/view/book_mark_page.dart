@@ -33,7 +33,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         height: Adaptive.h(6),
         width: Adaptive.w(30),
         decoration: BoxDecoration(
-            color: selectedLanguge == index ? Colors.black : Colors.white,
+            color:
+                selectedLanguge == index ? Colors.blue.shade900 : Colors.white,
             borderRadius: BorderRadius.circular(30)),
         child: Text(
           text,
@@ -74,7 +75,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       final response =
           await http.post(Uri.parse(apiEndpoint + '?' + _encodeParams(params)),
               headers: {
-                'x-api-key': apiKey,
+                'x-api-key': _prefs!.getString('api_key')!,
                 'Content-Type': 'text/plain',
                 'accept': 'application/octet-stream',
               },
@@ -138,7 +139,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.blue.shade900,
         title: Text('Bookmarks'),
       ),
       body: Column(
@@ -182,7 +183,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Widget tile(int index) {
     return Container(
       padding: EdgeInsets.all(12),
-      color: selectedIndex == index ? Colors.black : Colors.white,
+      color: selectedIndex == index ? Colors.blue.shade900 : Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -201,7 +202,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             },
             child: Icon(
               Icons.volume_up_outlined,
-              color: selectedIndex == index ? Colors.white : Colors.black,
+              color:
+                  selectedIndex == index ? Colors.white : Colors.blue.shade900,
             ),
           ),
         ],
@@ -213,14 +215,15 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   Widget hebrewTile(int index) {
     return Container(
       padding: EdgeInsets.all(12),
-      color: hebrewIndex == index ? Colors.black : Colors.white,
+      color: hebrewIndex == index ? Colors.blue.shade900 : Colors.white,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             widget.hwberewbookmarks[index],
             style: TextStyle(
-                color: hebrewIndex == index ? Colors.white : Colors.black,
+                color:
+                    hebrewIndex == index ? Colors.white : Colors.blue.shade900,
                 fontSize: 18),
           ),
           isApiCall && hebrewIndex == index
@@ -248,7 +251,9 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                   },
                   child: Icon(
                     Icons.volume_up_outlined,
-                    color: hebrewIndex == index ? Colors.white : Colors.black,
+                    color: hebrewIndex == index
+                        ? Colors.white
+                        : Colors.blue.shade900,
                   ),
                 ),
         ],
