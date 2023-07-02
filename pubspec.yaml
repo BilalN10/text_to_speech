@@ -48,6 +48,8 @@ dependencies:
   just_audio: ^0.9.32
   get: ^4.6.5
   url_launcher: ^6.1.10
+  font_awesome_flutter: ^10.4.0
+  connectivity_plus: ^3.0.6
  
 
   

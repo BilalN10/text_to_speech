@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
@@ -12,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:typing/view/book_mark_page.dart';
 import 'package:typing/view/text_to_speech.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class KeyboardScreen extends StatefulWidget {
   @override
@@ -38,63 +40,75 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
   final _audioPlayer = AudioPlayer();
   bool isApiCall = false;
   Future<void> _getAudioFromAPI(String text) async {
-    isApiCall = true;
     String apiEndpoint = 'https://api.narakeet.com/text-to-speech/mp3';
     String apiKey = 'PmVjOlrohp3x9dN17ZzEx70YCofYQQMuxoAp2QQ5';
     var params = {
       'voice': 'Ayelet',
     };
-    try {
-      final response =
-          await http.post(Uri.parse(apiEndpoint + '?' + _encodeParams(params)),
-              headers: {
-                'x-api-key': _prefs!.getString('api_key')!,
-                'Content-Type': 'text/plain',
-                'accept': 'application/octet-stream',
-              },
-              body: text);
+    final connectivityResult = await (Connectivity().checkConnectivity());
 
-      log('resonse is ${response.body}');
-      log('resonse is ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/audio.mp3';
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-        await _audioPlayer.setFilePath(filePath);
-        setState(() {
-          isApiCall = false;
-        });
-        await _playAudio();
-      } else if (response.statusCode == 400) {
-        log('--------------');
-        setState(() {
-          isApiCall = false;
-        });
-        Get.snackbar('Failed', 'Enter valid sentance || word',
-            colorText: Colors.white);
-      } else if (response.statusCode == 403) {
-        log('--------------');
-        setState(() {
-          isApiCall = false;
-        });
-        Get.snackbar(
-            'Failed', 'Your Api key is not correct || maybe its expire',
-            colorText: Colors.white);
-      } else {
-        setState(() {
-          isApiCall = false;
-        });
-        Get.snackbar(
-            'Failed', 'Your Api key is not correct || maybe its expire',
-            colorText: Colors.white);
-      }
-    } on SocketException {
+    if (connectivityResult != ConnectivityResult.none) {
       setState(() {
-        isApiCall = false;
+        isApiCall = true;
       });
-      Get.snackbar('Network error', 'No internet', colorText: Colors.white);
+
+      try {
+        final response = await http.post(
+            Uri.parse(apiEndpoint + '?' + _encodeParams(params)),
+            headers: {
+              'x-api-key': _prefs!.getString('api_key')!,
+              'Content-Type': 'text/plain',
+              'accept': 'application/octet-stream',
+            },
+            body: text);
+
+        log('resonse is ${response.body}');
+        log('resonse is ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final directory = await getApplicationDocumentsDirectory();
+          final filePath = '${directory.path}/audio.mp3';
+          final file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+          await _audioPlayer.setFilePath(filePath);
+          setState(() {
+            isApiCall = false;
+          });
+          await _playAudio();
+        } else if (response.statusCode == 400) {
+          log('--------------');
+          setState(() {
+            isApiCall = false;
+          });
+          Get.snackbar('Failed', 'Enter valid sentance || word',
+              colorText: Colors.white);
+        } else if (response.statusCode == 403) {
+          log('--------------');
+          setState(() {
+            isApiCall = false;
+          });
+          Get.snackbar(
+              'Failed', 'Your Api key is not correct || maybe its expire',
+              colorText: Colors.white);
+        } else {
+          setState(() {
+            isApiCall = false;
+          });
+          Get.snackbar(
+              'Failed', 'Your Api key is not correct || maybe its expire',
+              colorText: Colors.white);
+        }
+      } catch (e) {
+        setState(() {
+          isApiCall = false;
+        });
+        Get.snackbar('Error', e.toString(), colorText: Colors.white);
+      }
+    } else {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(const SnackBar(
+        content: Text('Internet connection not available'),
+        behavior: SnackBarBehavior.floating,
+      ));
     }
   }
 
@@ -127,15 +141,17 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
   }
 
   void _addBookmark(String text) {
-    setState(() {
-      if (selectedLanguge == 1) {
-        _bookmarkedItems.add(text);
-        _prefs!.setStringList('bookmarks', _bookmarkedItems);
-      } else {
-        _hebrewbookmarkedItems.add(text);
-        _prefs!.setStringList('hebrew_bookmarks', _hebrewbookmarkedItems);
-      }
-    });
+    if (text.isNotEmpty) {
+      setState(() {
+        if (selectedLanguge == 1) {
+          _bookmarkedItems.add(text);
+          _prefs!.setStringList('bookmarks', _bookmarkedItems);
+        } else {
+          _hebrewbookmarkedItems.add(text);
+          _prefs!.setStringList('hebrew_bookmarks', _hebrewbookmarkedItems);
+        }
+      });
+    }
   }
 
   double _buttonSize = 100.0; // Initial size of the button
@@ -386,2223 +402,46 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
 
   bool isHover = false;
 
-  Widget checkTile({
-    required int index,
-    required Function()? onTap,
-    required String text,
-    double? height,
-    double? width,
-    int? index_41,
-    int? index_42,
-    int? index_43,
-    int? index_44,
-    int? index_45,
-    int? index_46,
-    int? index_47,
-    int? index_48,
-    int? index_49,
-    int? index_50,
-    int? index_51,
-    int? index_1,
-    int? index_2,
-    int? index_3,
-    int? index_4,
-    int? index_5,
-    int? index_6,
-    int? index_7,
-    int? index_8,
-    int? index_9,
-    int? index_10,
-    int? index_11,
-    int? index_12,
-    int? index_13,
-    int? index_14,
-    int? index_15,
-    int? index_16,
-    int? index_17,
-    int? index_18,
-    int? index_19,
-    int? index_20,
-    int? index_21,
-    int? index_22,
-    int? index_23,
-    int? index_24,
-    int? index_25,
-    int? index_26,
-    int? index_27,
-    int? index_28,
-    int? index_29,
-    int? index_30,
-    int? index_31,
-    int? index_32,
-    int? index_33,
-  }) {
+  Widget checkTile(
+      {required int index,
+      required Function()? onTap,
+      required String text,
+      double? height,
+      double? width,
+      IconData? iconData}) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (event) {},
       onHover: (event) {
-        selectedIndex = index;
-
         setState(() {
-          if (index == 41) {
-            otherIndex_41 = index_41!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 42) {
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-
-            otherIndex_42 = index_42!;
-          } else if (index == 43) {
-            otherIndex_43 = index_43!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 44) {
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-
-            otherIndex_44 = index_44!;
-          } else if (index == 45) {
-            otherIndex_45 = index_45!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 46) {
-            otherIndex_46 = index_46!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 47) {
-            otherIndex_47 = index_47!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 48) {
-            otherIndex_48 = index_48!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 49) {
-            otherIndex_49 = index_49!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 50) {
-            otherIndex_50 = index_50!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 51) {
-            otherIndex_51 = index_51!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-          } else if (index == 1) {
-            otherIndex_1 = index_1!;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 2) {
-            otherIndex_1 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-
-            otherIndex_2 = index_2!;
-          } else if (index == 3) {
-            otherIndex_3 = index_3!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 4) {
-            otherIndex_4 = index_4!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 5) {
-            otherIndex_5 = index_5!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 6) {
-            otherIndex_6 = index_6!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 7) {
-            otherIndex_7 = index_7!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 8) {
-            otherIndex_8 = index_8!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 9) {
-            otherIndex_9 = index_9!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 10) {
-            otherIndex_10 = index_10!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 11) {
-            otherIndex_11 = index_11!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 12) {
-            otherIndex_12 = index_12!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 13) {
-            otherIndex_13 = index_13!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 14) {
-            otherIndex_14 = index_14!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 15) {
-            otherIndex_15 = index_15!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 16) {
-            otherIndex_16 = index_16!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 17) {
-            otherIndex_17 = index_17!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 18) {
-            otherIndex_18 = index_18!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 19) {
-            otherIndex_19 = index_19!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 20) {
-            otherIndex_20 = index_20!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 21) {
-            otherIndex_21 = index_21!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 22) {
-            otherIndex_22 = index_22!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 23) {
-            otherIndex_23 = index_23!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 24) {
-            otherIndex_24 = index_24!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 25) {
-            otherIndex_25 = index_25!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 26) {
-            otherIndex_26 = index_26!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 27) {
-            otherIndex_27 = index_27!;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 28) {
-            otherIndex_28 = index_28!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 29) {
-            otherIndex_29 = index_29!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 30) {
-            otherIndex_30 = index_30!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 31) {
-            otherIndex_31 = index_31!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 32) {
-            otherIndex_32 = index_32!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          } else if (index == 33) {
-            otherIndex_33 = index_33!;
-
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
-          }
+          selectedIndex = index;
         });
       },
       onExit: (event) {
         setState(() {
           setState(() {
             selectedIndex = 0;
-            otherIndex_1 = 0;
-            otherIndex_2 = 0;
-            otherIndex_3 = 0;
-            otherIndex_4 = 0;
-            otherIndex_5 = 0;
-            otherIndex_6 = 0;
-            otherIndex_7 = 0;
-            otherIndex_8 = 0;
-            otherIndex_9 = 0;
-            otherIndex_10 = 0;
-            otherIndex_11 = 0;
-            otherIndex_12 = 0;
-            otherIndex_13 = 0;
-            otherIndex_14 = 0;
-            otherIndex_15 = 0;
-            otherIndex_16 = 0;
-            otherIndex_17 = 0;
-            otherIndex_18 = 0;
-            otherIndex_19 = 0;
-            otherIndex_20 = 0;
-            otherIndex_21 = 0;
-            otherIndex_22 = 0;
-            otherIndex_23 = 0;
-            otherIndex_24 = 0;
-            otherIndex_25 = 0;
-            otherIndex_26 = 0;
-            otherIndex_27 = 0;
-            otherIndex_28 = 0;
-            otherIndex_29 = 0;
-            otherIndex_30 = 0;
-            otherIndex_31 = 0;
-            otherIndex_32 = 0;
-            otherIndex_33 = 0;
-            otherIndex_41 = 0;
-            otherIndex_42 = 0;
-            otherIndex_43 = 0;
-            otherIndex_44 = 0;
-            otherIndex_45 = 0;
-            otherIndex_46 = 0;
-            otherIndex_47 = 0;
-            otherIndex_48 = 0;
-            otherIndex_49 = 0;
-            otherIndex_50 = 0;
-            otherIndex_51 = 0;
           });
-          //   myvalue = false;
         });
       },
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // ]]  if (index == 41)
           GestureDetector(
             onTap: onTap,
             child: AnimatedContainer(
-              // padding: EdgeInsets.symmetric(
-              //   horizontal: selectedIndex == index ? Adaptive.w(3) : Adaptive.w(),
-              //   vertical: selectedIndex == index ? Adaptive.h(5) : Adaptive.h(4),
-              // ),
               alignment: Alignment.center,
               duration: const Duration(milliseconds: 200),
-              width: width,
-              //     : otherIndex_1 == 0 ||
-              //             otherIndex_2 == 0 ||
-              //             otherIndex_3 == 0 ||
-              //             otherIndex_4 == 0 ||
-              //             otherIndex_5 == 0 ||
-              //             otherIndex_6 == 0 ||
-              //             otherIndex_7 == 0 ||
-              //             otherIndex_8 == 0
-              //         ? width!
-              //         : width! + 9,
-              // selectedIndex == index
-              //     // ? MediaQuery.of(context).size.width <= 400
-              //     ? width! + 13
-              //     : otherIndex_1 == index_1 ||otherIndex_2 == index_2 ||
-              //             otherIndex_3 == index_3 ||
-              //             otherIndex_4 == index_4 ||
-              //             otherIndex_5 == index_5 ||
-              //             otherIndex_6 == index_6 ||
-              //             otherIndex_7 == index_7 ||
-              //             otherIndex_8 == index_8
-              //         ? width! + 9
-              //         : width,
-              // : Adaptive.w(19),
-              height: selectedIndex == index
-                  ? height! + 30
-                  : index_1 == otherIndex_1 ||
-                          index_2 == otherIndex_2 ||
-                          index_3 == otherIndex_3 ||
-                          index_4 == otherIndex_4 ||
-                          index_5 == otherIndex_5 ||
-                          index_6 == otherIndex_6 ||
-                          index_7 == otherIndex_7 ||
-                          index_8 == otherIndex_8 ||
-                          index_9 == otherIndex_9 ||
-                          index_10 == otherIndex_10 ||
-                          index_11 == otherIndex_11 ||
-                          index_12 == otherIndex_12 ||
-                          index_13 == otherIndex_13 ||
-                          index_14 == otherIndex_14 ||
-                          index_15 == otherIndex_15 ||
-                          index_16 == otherIndex_16 ||
-                          index_17 == otherIndex_17 ||
-                          index_18 == otherIndex_18 ||
-                          index_19 == otherIndex_19 ||
-                          index_20 == otherIndex_20 ||
-                          index_21 == otherIndex_21 ||
-                          index_22 == otherIndex_22 ||
-                          index_23 == otherIndex_23 ||
-                          index_24 == otherIndex_24 ||
-                          index_25 == otherIndex_25 ||
-                          index_26 == otherIndex_26 ||
-                          index_27 == otherIndex_27 ||
-                          index_28 == otherIndex_28 ||
-                          index_29 == otherIndex_29 ||
-                          index_30 == otherIndex_30 ||
-                          index_31 == otherIndex_31 ||
-                          index_32 == otherIndex_32 ||
-                          index_33 == otherIndex_33 ||
-                          index_41 == otherIndex_41 ||
-                          index_42 == otherIndex_42 ||
-                          index_43 == otherIndex_43 ||
-                          index_44 == otherIndex_44 ||
-                          index_45 == otherIndex_45 ||
-                          index_46 == otherIndex_46 ||
-                          index_47 == otherIndex_47 ||
-                          index_48 == otherIndex_48 ||
-                          index_49 == otherIndex_49 ||
-                          index_50 == otherIndex_50 ||
-                          index_51 == otherIndex_51
-                      ? height! + 15
-                      : height!,
-              // : MediaQuery.of(context).size.width < 550
-              //     ? height! - 10
-
+              width: selectedIndex == index ? width! + 15 : width,
+              height: selectedIndex == index ? height! + 30 : height!,
               decoration: BoxDecoration(
                   color: selectedIndex == index
                       ? Colors.blue.shade400
                       : Colors.white,
                   boxShadow: [
                     selectedIndex == index
-                        ? BoxShadow(color: Colors.blue.shade200, blurRadius: 20)
+                        ? BoxShadow(
+                            color: Colors.blue.shade200, blurRadius: 100)
                         : BoxShadow(color: Colors.black12, blurRadius: 20)
                   ]
 
@@ -2610,20 +449,28 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
                   ),
               child: Padding(
                 padding: const EdgeInsets.all(5),
-                child: Text(
-                  text,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selectedIndex == index ? Colors.white : Colors.black,
-                    fontWeight:
-                        index == 23 || index == 22 ? FontWeight.bold : null,
-                    fontSize: index == 23 || index == 22
-                        ? Adaptive.px(30)
-                        : index == 51
-                            ? Adaptive.px(10)
-                            : Adaptive.px(25),
-                  ),
-                ),
+                child: iconData != null
+                    ? Icon(
+                        iconData,
+                        size: Adaptive.px(23),
+                        color: selectedIndex == index
+                            ? Colors.white
+                            : Colors.black,
+                      )
+                    : Text(
+                        text,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: selectedIndex == index
+                              ? Colors.white
+                              : Colors.black,
+                          fontWeight:
+                              selectedIndex == index ? FontWeight.bold : null,
+                          fontSize: selectedIndex == index
+                              ? Adaptive.px(40)
+                              : Adaptive.px(25),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -2645,6 +492,7 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       onHover: (event) {
         setState(() {
           selectedIndex = index;
+          isRowPadding = false;
         });
       },
       onExit: (event) {
@@ -2677,7 +525,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
                   : height! + 5,
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10.0),
-              color: Colors.white,
+              color:
+                  selectedIndex == index ? Colors.blue.shade400 : Colors.white,
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20)]),
           child: Padding(
             padding: const EdgeInsets.all(5),
@@ -2697,21 +546,30 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
 
   FlutterTts flutterTts = FlutterTts();
 
-  void _submitText() {
-    String text = _textEditingController.text;
-    // Process the text here
-    // ...
-    // Clear the text field after submitting
-    // _textEditingController.clear();
-  }
+  // void _handleEnterButton() {
+  //   _textEditingController.text += '\n';
+  //   _textEditingController.selection = TextSelection.fromPosition(
+  //     TextPosition(offset: _textEditingController.text.length),
+  //   );
+  // }
+  final ScrollController _scrollController = ScrollController();
 
   void _handleEnterButton() {
-    _textEditingController.text += '\n';
-    _textEditingController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _textEditingController.text.length),
-    );
+    setState(() {
+      _textEditingController.text += '\n';
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
+  final TextEditingController cont = TextEditingController();
+  double _textFieldHeight = 50.0;
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
@@ -2727,14 +585,20 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               ? const SizedBox()
               : _prefs!.getString('api_key') != null
                   ? IconButton(
-                      icon: const Icon(Icons.key),
+                      icon: Icon(
+                        Icons.key,
+                        size: Adaptive.px(35),
+                      ),
                       onPressed: () {
                         updateAPIkeyDialog(context);
                       },
                     )
                   : const SizedBox(),
           IconButton(
-            icon: const Icon(Icons.bookmark),
+            icon: Icon(
+              Icons.bookmark,
+              size: Adaptive.px(35),
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -2749,6 +613,7 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
           ),
         ],
       ),
+
       body: Listener(
         onPointerHover: (event) {
           setState(() {
@@ -2757,27 +622,36 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
         },
         child: Container(
           padding: const EdgeInsets.all(0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(height: Adaptive.h(5)),
-
-                //Text(screenWidth.toString()),
-
-                Container(
-                  // width: MediaQuery.of(context).size.width * 0.9,
-                  // height: MediaQuery.of(context).size.height * 0.08,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: Adaptive.h(0.5)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  langaugeTile('English', 1),
+                  SizedBox(
+                    width: Adaptive.w(10),
+                  ),
+                  langaugeTile('Hebrew', 2),
+                ],
+              ),
+              SizedBox(height: Adaptive.h(0.5)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: Adaptive.w(1)),
+                child: Container(
+                  height: Adaptive.h(12),
                   decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(color: Colors.black12, blurRadius: 10)
                       ]),
-                  child: Center(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
                     child: TextField(
                       maxLines: null,
-                      keyboardType: TextInputType.multiline,
+                      // keyboardType: TextInputType.multiline,
                       onSubmitted: (value) {},
                       textDirection: selectedLanguge == 1
                           ? TextDirection.ltr
@@ -2791,84 +665,99 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
                       ],
                       style: TextStyle(fontSize: Adaptive.px(22)),
                       decoration: InputDecoration(
-                          suffixIcon: isApiCall
-                              ? Padding(
-                                  padding: EdgeInsets.all(10.0),
-                                  child: CircularProgressIndicator(
-                                    color: Colors.blue.shade900,
-                                  ),
-                                )
-                              : GestureDetector(
-                                  onTap: () {
-                                    if (_textEditingController
-                                        .text.isNotEmpty) {
-                                      if (selectedLanguge == 1) {
-                                        tts.speak(_textEditingController.text);
+                        // contentPadding: EdgeInsets.symmetric(
+                        //     vertical: Adaptive.h(5), horizontal: 16),
+                        suffixIcon: isApiCall
+                            ? Padding(
+                                padding: EdgeInsets.all(10.0),
+                                child: CircularProgressIndicator(
+                                  color: Colors.blue.shade900,
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () {
+                                  if (_textEditingController.text.isNotEmpty) {
+                                    if (selectedLanguge == 1) {
+                                      tts.speak(_textEditingController.text);
+                                    } else {
+                                      if (_prefs!.getString('api_key') ==
+                                          null) {
+                                        checkAPikey(context);
                                       } else {
-                                        if (_prefs!.getString('api_key') ==
-                                            null) {
+                                        if (_prefs!
+                                            .getString('api_key')!
+                                            .isEmpty) {
                                           checkAPikey(context);
                                         } else {
-                                          if (_prefs!
-                                              .getString('api_key')!
-                                              .isEmpty) {
-                                            checkAPikey(context);
-                                          } else {
-                                            _getAudioFromAPI(
-                                                _textEditingController.text);
-                                          }
+                                          _getAudioFromAPI(
+                                              _textEditingController.text);
                                         }
                                       }
                                     }
-                                  },
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
                                   child: Icon(
                                     Icons.volume_up,
                                     color: Colors.blue.shade900,
+                                    size: Adaptive.px(40),
                                   ),
                                 ),
-                          border: InputBorder.none,
-                          hintTextDirection: selectedLanguge == 1
-                              ? TextDirection.ltr
-                              : TextDirection.rtl,
-                          hintText:
-                              selectedLanguge == 1 ? 'Type here..' : 'הקלד כאן',
-                          contentPadding: const EdgeInsets.all(15)),
+                              ),
+                        border: InputBorder.none,
+                        hintTextDirection: selectedLanguge == 1
+                            ? TextDirection.ltr
+                            : TextDirection.rtl,
+                        hintText:
+                            selectedLanguge == 1 ? 'Type here..' : 'הקלד כאן',
+                      ),
                       readOnly: true,
                     ),
                   ),
                 ),
-                SizedBox(height: Adaptive.h(3)),
-                //  englishKeyboard(),
+              ),
+              // Padding(
+              //     padding: const EdgeInsets.all(16.0),
+              //     child: Column(
+              //       children: [
+              //         Container(
+              //           height: Adaptive.h(15),
+              //           decoration: BoxDecoration(
+              //             color: Colors.white,
+              //             borderRadius: BorderRadius.circular(10),
+              //             boxShadow: [
+              //               BoxShadow(color: Colors.black12, blurRadius: 10)
+              //             ],
+              //           ),
+              //           child: SingleChildScrollView(
+              //             controller: _scrollController,
+              //             child: TextField(
+              //               controller: _textEditingController,
+              //               maxLines: null,
+              //               keyboardType: TextInputType.multiline,
+              //               decoration: InputDecoration(
+              //                 border: InputBorder.none,
+              //                 hintText: 'Enter text...',
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //         ElevatedButton(
+              //           onPressed: _handleEnterButton,
+              //           child: Text('Enter'),
+              //         ),
+              //       ],
+              //     )),
 
-                Container(
-                  height: Adaptive.h(6),
-                  width: Adaptive.w(60),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 10)
-                      ],
-                      borderRadius: BorderRadius.circular(30)),
-                  child: Row(
-                    children: [
-                      langaugeTile('English', 1),
-                      langaugeTile('Hebrew', 2)
-                    ],
-                  ),
-                ),
-                SizedBox(height: Adaptive.h(5)),
-
-                selectedLanguge == 1
-                    ? englishKeyboard(screenHeight, screenWidth)
-                    : hebrewyKeyboard(screenHeight, screenWidth),
-
-                SizedBox(height: Adaptive.h(2)),
-
-                const SizedBox(
-                  height: 50,
-                ),
-              ],
-            ),
+              selectedLanguge == 1
+                  ? englishKeyboard(screenHeight, screenWidth)
+                  : hebrewyKeyboard(screenHeight, screenWidth),
+              SizedBox(height: Adaptive.h(2)),
+              // const SizedBox(
+              //   height: 50,
+              // ),
+            ],
           ),
         ),
       ),
@@ -2887,12 +776,13 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
       },
       child: Container(
         alignment: Alignment.center,
-        height: Adaptive.h(6),
+        height: Adaptive.h(5),
         width: Adaptive.w(30),
         decoration: BoxDecoration(
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
             color:
                 selectedLanguge == index ? Colors.blue.shade900 : Colors.white,
-            borderRadius: BorderRadius.circular(30)),
+            borderRadius: BorderRadius.circular(10)),
         child: Text(
           text,
           style: TextStyle(
@@ -2905,39 +795,35 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
     );
   }
 
+  bool isRowPadding = true;
+
   Widget englishKeyboard(double height, double width) {
     return Column(
       children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          checkTile(
-            index: 41,
-            onTap: () {
-              _handleTextInput('1');
-            },
-            text: '1',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_41: 41,
-            index_42: 42,
-            index_1: 1,
-            index_2: 2,
-          ),
-          checkTile(
-            index: 42,
-            onTap: () {
-              _handleTextInput('2');
-            },
-            text: '2',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_41: 41,
-            index_42: 42,
-            index_43: 43,
-            index_1: 1,
-            index_2: 2,
-            index_3: 3,
-          ),
-          checkTile(
+        Container(
+          alignment: Alignment.center,
+          height: height * 0.1 + 30,
+          child:
+              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+            checkTile(
+              index: 41,
+              onTap: () {
+                _handleTextInput('1');
+              },
+              text: '1',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 42,
+              onTap: () {
+                _handleTextInput('2');
+              },
+              text: '2',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
               index: 43,
               onTap: () {
                 _handleTextInput('3');
@@ -2945,13 +831,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '3',
               height: height * 0.1,
               width: width * 0.08,
-              index_2: 2,
-              index_3: 3,
-              index_4: 4,
-              index_42: 42,
-              index_43: 43,
-              index_44: 44),
-          checkTile(
+            ),
+            checkTile(
               index: 44,
               onTap: () {
                 _handleTextInput('4');
@@ -2959,13 +840,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '4',
               height: height * 0.1,
               width: width * 0.08,
-              index_3: 3,
-              index_4: 4,
-              index_5: 5,
-              index_43: 43,
-              index_44: 44,
-              index_45: 45),
-          checkTile(
+            ),
+            checkTile(
               index: 45,
               onTap: () {
                 _handleTextInput('5');
@@ -2973,13 +849,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '5',
               height: height * 0.1,
               width: width * 0.08,
-              index_4: 4,
-              index_5: 5,
-              index_6: 6,
-              index_44: 44,
-              index_45: 45,
-              index_46: 46),
-          checkTile(
+            ),
+            checkTile(
               index: 46,
               onTap: () {
                 _handleTextInput('6');
@@ -2987,13 +858,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '6',
               height: height * 0.1,
               width: width * 0.08,
-              index_5: 5,
-              index_6: 6,
-              index_7: 7,
-              index_45: 45,
-              index_46: 46,
-              index_47: 47),
-          checkTile(
+            ),
+            checkTile(
               index: 47,
               onTap: () {
                 _handleTextInput('7');
@@ -3001,13 +867,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '7',
               height: height * 0.1,
               width: width * 0.08,
-              index_6: 6,
-              index_7: 7,
-              index_8: 8,
-              index_46: 46,
-              index_47: 47,
-              index_48: 48),
-          checkTile(
+            ),
+            checkTile(
               index: 48,
               onTap: () {
                 _handleTextInput('8');
@@ -3015,13 +876,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '8',
               height: height * 0.1,
               width: width * 0.08,
-              index_7: 7,
-              index_8: 8,
-              index_9: 9,
-              index_47: 47,
-              index_48: 48,
-              index_49: 49),
-          checkTile(
+            ),
+            checkTile(
               index: 49,
               onTap: () {
                 _handleTextInput('9');
@@ -3029,13 +885,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '9',
               height: height * 0.1,
               width: width * 0.08,
-              index_8: 8,
-              index_9: 9,
-              index_10: 10,
-              index_48: 48,
-              index_49: 49,
-              index_50: 50),
-          checkTile(
+            ),
+            checkTile(
               index: 50,
               onTap: () {
                 _handleTextInput('0');
@@ -3043,13 +894,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: '0',
               height: height * 0.1,
               width: width * 0.08,
-              index_11: 11,
-              index_9: 9,
-              index_10: 10,
-              index_49: 49,
-              index_50: 50,
-              index_51: 51),
-          checkTile(
+            ),
+            checkTile(
               index: 51,
               onTap: () {
                 _clearInput();
@@ -3057,212 +903,136 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'Clear',
               height: height * 0.1,
               width: width * 0.08,
-              index_11: 11,
-              index_10: 10,
-              index_50: 50,
-              index_51: 51),
-        ]),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          checkTile(
-              index: 1,
+            ),
+          ]),
+        ),
+        // SizedBox(
+        //   height: height * 0.05,
+        // ),
+        Container(
+          //  color: Colors.amber,
+          alignment: Alignment.center,
+          height: height * 0.1 + 30,
+          child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                checkTile(
+                  index: 1,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'q' : 'Q');
+                  },
+                  text: isUpperCaseFalse ? 'q' : 'Q',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 2,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'w' : 'W');
+                  },
+                  text: isUpperCaseFalse ? 'w' : 'W',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 3,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'e' : 'E');
+                  },
+                  text: isUpperCaseFalse ? 'e' : 'E',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 4,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'r' : 'R');
+                  },
+                  text: isUpperCaseFalse ? 'r' : 'R',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 5,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 't' : 'T');
+                  },
+                  text: isUpperCaseFalse ? 't' : 'T',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 6,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'y' : 'Y');
+                  },
+                  text: isUpperCaseFalse ? 'y' : 'Y',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 7,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'u' : 'U');
+                  },
+                  text: isUpperCaseFalse ? 'u' : 'U',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 8,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'i' : 'I');
+                  },
+                  text: isUpperCaseFalse ? 'i' : 'I',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 9,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'o' : 'O');
+                  },
+                  text: isUpperCaseFalse ? 'o' : 'O',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                  index: 10,
+                  onTap: () {
+                    _handleTextInput(isUpperCaseFalse ? 'p' : 'P');
+                  },
+                  text: isUpperCaseFalse ? 'p' : 'P',
+                  height: height * 0.1,
+                  width: width * 0.08,
+                ),
+                checkTile(
+                    index: 11,
+                    onTap: () {
+                      removeLastCharater();
+                    },
+                    text: '✖',
+                    height: height * 0.1,
+                    width: width * 0.08,
+                    iconData: FontAwesomeIcons.deleteLeft),
+              ]),
+        ),
+        Container(
+          alignment: Alignment.center,
+          height: height * 0.1 + 30,
+          child:
+              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+            checkTile(
+              index: 12,
               onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'q' : 'Q');
+                _handleTextInput('?');
               },
-              text: isUpperCaseFalse ? 'q' : 'Q',
+              text: '?',
               height: height * 0.1,
               width: width * 0.08,
-              index_1: 1,
-              index_2: 2,
-              index_12: 12,
-              index_13: 13,
-              index_41: 41,
-              index_42: 42),
-          checkTile(
-              index: 2,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'w' : 'W');
-              },
-              text: isUpperCaseFalse ? 'w' : 'W',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_1: 1,
-              index_2: 2,
-              index_3: 3,
-              index_12: 12,
-              index_13: 13,
-              index_14: 14,
-              index_41: 41,
-              index_42: 42,
-              index_43: 43),
-          checkTile(
-              index: 3,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'e' : 'E');
-              },
-              text: isUpperCaseFalse ? 'e' : 'E',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_2: 2,
-              index_3: 3,
-              index_4: 4,
-              index_13: 13,
-              index_14: 14,
-              index_15: 15,
-              index_42: 42,
-              index_43: 43,
-              index_44: 44),
-          checkTile(
-              index: 4,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'r' : 'R');
-              },
-              text: isUpperCaseFalse ? 'r' : 'R',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_3: 3,
-              index_4: 4,
-              index_5: 5,
-              index_13: 13,
-              index_14: 14,
-              index_15: 15,
-              index_16: 16,
-              index_43: 43,
-              index_44: 44,
-              index_45: 45),
-          checkTile(
-              index: 5,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 't' : 'T');
-              },
-              text: isUpperCaseFalse ? 't' : 'T',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_4: 4,
-              index_5: 5,
-              index_6: 6,
-              index_15: 15,
-              index_16: 16,
-              index_17: 17,
-              index_44: 44,
-              index_45: 45,
-              index_46: 46),
-          checkTile(
-              index: 6,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'y' : 'Y');
-              },
-              text: isUpperCaseFalse ? 'y' : 'Y',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_5: 5,
-              index_6: 6,
-              index_7: 7,
-              index_16: 16,
-              index_17: 17,
-              index_18: 18,
-              index_45: 45,
-              index_46: 46,
-              index_47: 47),
-          checkTile(
-              index: 7,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'u' : 'U');
-              },
-              text: isUpperCaseFalse ? 'u' : 'U',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_6: 6,
-              index_7: 7,
-              index_8: 8,
-              index_17: 17,
-              index_18: 18,
-              index_19: 19,
-              index_46: 46,
-              index_47: 47,
-              index_48: 48),
-          checkTile(
-              index: 8,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'i' : 'I');
-              },
-              text: isUpperCaseFalse ? 'i' : 'I',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_7: 7,
-              index_8: 8,
-              index_9: 9,
-              index_18: 18,
-              index_19: 19,
-              index_20: 20,
-              index_47: 47,
-              index_48: 48,
-              index_49: 49),
-          checkTile(
-              index: 9,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'o' : 'O');
-              },
-              text: isUpperCaseFalse ? 'o' : 'O',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_8: 8,
-              index_9: 9,
-              index_10: 10,
-              index_19: 19,
-              index_20: 20,
-              index_21: 21,
-              index_48: 48,
-              index_49: 49,
-              index_50: 50),
-          checkTile(
-              index: 10,
-              onTap: () {
-                _handleTextInput(isUpperCaseFalse ? 'p' : 'P');
-              },
-              text: isUpperCaseFalse ? 'p' : 'P',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_9: 9,
-              index_10: 10,
-              index_11: 11,
-              index_20: 20,
-              index_21: 21,
-              index_22: 22,
-              index_49: 49,
-              index_50: 50,
-              index_51: 51),
-          checkTile(
-              index: 11,
-              onTap: () {
-                removeLastCharater();
-              },
-              text: '✖',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_10: 10,
-              index_11: 11,
-              index_21: 21,
-              index_22: 22,
-              index_50: 50,
-              index_51: 51),
-        ]),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          checkTile(
-            index: 12,
-            onTap: () {
-              _handleTextInput('?');
-            },
-            text: '?',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_1: 1,
-            index_2: 2,
-            index_12: 12,
-            index_13: 13,
-            index_23: 23,
-            index_24: 24,
-          ),
-          checkTile(
+            ),
+            checkTile(
               index: 13,
               onTap: () {
                 _handleTextInput(isUpperCaseFalse ? 'a' : 'A');
@@ -3270,338 +1040,196 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: isUpperCaseFalse ? 'a' : 'A',
               height: height * 0.1,
               width: width * 0.08,
-              index_1: 1,
-              index_2: 2,
-              index_3: 3,
-              index_12: 12,
-              index_13: 13,
-              index_14: 14,
-              index_23: 23,
-              index_24: 24,
-              index_25: 25),
-          checkTile(
-            index: 14,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 's' : 'S');
-            },
-            text: isUpperCaseFalse ? 's' : 'S',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_2: 2,
-            index_3: 3,
-            index_4: 4,
-            index_13: 13,
-            index_14: 14,
-            index_15: 15,
-            index_24: 24,
-            index_25: 25,
-            index_26: 26,
-          ),
-          checkTile(
-            index: 15,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'd' : 'D');
-            },
-            text: isUpperCaseFalse ? 'd' : 'D',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_3: 3,
-            index_4: 4,
-            index_5: 5,
-            index_14: 14,
-            index_15: 15,
-            index_16: 16,
-            index_25: 25,
-            index_26: 26,
-            index_27: 27,
-          ),
-          checkTile(
-            index: 16,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'f' : 'F');
-            },
-            text: isUpperCaseFalse ? 'f' : 'F',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_4: 4,
-            index_5: 5,
-            index_6: 6,
-            index_15: 15,
-            index_16: 16,
-            index_17: 17,
-            index_26: 26,
-            index_27: 27,
-            index_28: 28,
-          ),
-          checkTile(
-            index: 17,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'g' : 'G');
-            },
-            text: isUpperCaseFalse ? 'g' : 'G',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_5: 5,
-            index_6: 6,
-            index_7: 7,
-            index_16: 16,
-            index_17: 17,
-            index_18: 18,
-            index_27: 27,
-            index_28: 28,
-            index_29: 29,
-          ),
-          checkTile(
-            index: 18,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'h' : 'H');
-            },
-            text: isUpperCaseFalse ? 'h' : 'H',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_6: 6,
-            index_7: 7,
-            index_8: 8,
-            index_17: 17,
-            index_18: 18,
-            index_19: 19,
-            index_28: 28,
-            index_29: 29,
-            index_30: 30,
-          ),
-          checkTile(
-            index: 19,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'j' : 'J');
-            },
-            text: isUpperCaseFalse ? 'j' : 'J',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_7: 7,
-            index_8: 8,
-            index_9: 9,
-            index_18: 18,
-            index_19: 19,
-            index_20: 20,
-            index_29: 29,
-            index_30: 30,
-            index_31: 31,
-          ),
-          checkTile(
-            index: 20,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'k' : 'K');
-            },
-            text: isUpperCaseFalse ? 'k' : 'K',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_8: 8,
-            index_9: 9,
-            index_10: 10,
-            index_19: 19,
-            index_20: 20,
-            index_21: 21,
-            index_30: 30,
-            index_31: 31,
-            index_32: 32,
-          ),
-          checkTile(
-            index: 21,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'l' : 'L');
-            },
-            text: isUpperCaseFalse ? 'l' : 'L',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_9: 9,
-            index_10: 10,
-            index_11: 11,
-            index_20: 20,
-            index_21: 21,
-            index_22: 22,
-            index_31: 31,
-            index_32: 32,
-            index_33: 33,
-          ),
-          checkTile(
-            index: 22,
-            onTap: () {
-              _handleEnterButton();
-            },
-            text: '↵',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_10: 10,
-            index_11: 11,
-            index_21: 21,
-            index_22: 22,
-            index_32: 32,
-            index_33: 33,
-          ),
-        ]),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          checkTile(
-            index: 23,
-            onTap: () {
-              changeWord();
-            },
-            text: '⇧',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_12: 12,
-            index_13: 13,
-            index_23: 23,
-            index_24: 24,
-          ),
-          checkTile(
-            index: 24,
-            onTap: () {
-              _handleTextInput("'");
-            },
-            text: "'",
-            height: height * 0.1,
-            width: width * 0.08,
-            index_12: 12,
-            index_13: 13,
-            index_14: 14,
-            index_23: 23,
-            index_24: 24,
-            index_25: 25,
-          ),
-          checkTile(
-            index: 25,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'z' : 'Z');
-            },
-            text: isUpperCaseFalse ? 'z' : 'Z',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_13: 13,
-            index_14: 14,
-            index_15: 15,
-            index_24: 24,
-            index_25: 25,
-            index_26: 26,
-          ),
-          checkTile(
-            index: 26,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'x' : 'X');
-            },
-            text: isUpperCaseFalse ? 'x' : 'X',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_14: 14,
-            index_15: 15,
-            index_16: 16,
-            index_25: 25,
-            index_26: 26,
-            index_27: 27,
-          ),
-          checkTile(
-            index: 27,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'c' : 'C');
-            },
-            text: isUpperCaseFalse ? 'c' : 'C',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_15: 15,
-            index_16: 16,
-            index_17: 17,
-            index_26: 26,
-            index_27: 27,
-            index_28: 28,
-          ),
-          checkTile(
-            index: 28,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'v' : 'V');
-            },
-            text: isUpperCaseFalse ? 'v' : 'V',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_16: 16,
-            index_17: 17,
-            index_18: 18,
-            index_27: 27,
-            index_28: 28,
-            index_29: 29,
-          ),
-          checkTile(
-            index: 29,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'b' : 'B');
-            },
-            text: isUpperCaseFalse ? 'b' : 'B',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_17: 17,
-            index_18: 18,
-            index_19: 19,
-            index_28: 28,
-            index_29: 29,
-            index_30: 30,
-          ),
-          checkTile(
-            index: 30,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'n' : 'N');
-            },
-            text: isUpperCaseFalse ? 'n' : 'N',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_18: 18,
-            index_19: 19,
-            index_20: 20,
-            index_29: 29,
-            index_30: 30,
-            index_31: 31,
-          ),
-          checkTile(
-            index: 31,
-            onTap: () {
-              _handleTextInput(isUpperCaseFalse ? 'm' : 'M');
-            },
-            text: isUpperCaseFalse ? 'm' : 'M',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_19: 19,
-            index_20: 20,
-            index_21: 21,
-            index_30: 30,
-            index_31: 31,
-            index_32: 32,
-          ),
-          checkTile(
-            index: 32,
-            onTap: () {
-              _handleTextInput('.');
-            },
-            text: '.',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_20: 20,
-            index_21: 21,
-            index_22: 22,
-            index_31: 31,
-            index_32: 32,
-            index_33: 33,
-          ),
-          checkTile(
-            index: 33,
-            onTap: () {
-              _handleTextInput(',');
-            },
-            text: ',',
-            height: height * 0.1,
-            width: width * 0.08,
-            index_21: 21,
-            index_22: 22,
-            index_32: 32,
-            index_33: 33,
-          ),
-        ]),
+            ),
+            checkTile(
+              index: 14,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 's' : 'S');
+              },
+              text: isUpperCaseFalse ? 's' : 'S',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 15,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'd' : 'D');
+              },
+              text: isUpperCaseFalse ? 'd' : 'D',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 16,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'f' : 'F');
+              },
+              text: isUpperCaseFalse ? 'f' : 'F',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 17,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'g' : 'G');
+              },
+              text: isUpperCaseFalse ? 'g' : 'G',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 18,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'h' : 'H');
+              },
+              text: isUpperCaseFalse ? 'h' : 'H',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 19,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'j' : 'J');
+              },
+              text: isUpperCaseFalse ? 'j' : 'J',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 20,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'k' : 'K');
+              },
+              text: isUpperCaseFalse ? 'k' : 'K',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 21,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'l' : 'L');
+              },
+              text: isUpperCaseFalse ? 'l' : 'L',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+                index: 22,
+                onTap: () {
+                  _handleEnterButton();
+                },
+                text: '↵',
+                height: height * 0.1,
+                width: width * 0.08,
+                iconData: Icons.subdirectory_arrow_left_rounded),
+          ]),
+        ),
+        Container(
+          alignment: Alignment.center,
+          height: height * 0.1 + 30,
+          child:
+              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+            checkTile(
+              index: 23,
+              onTap: () {
+                changeWord();
+              },
+              text: '⇧',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 24,
+              onTap: () {
+                _handleTextInput("'");
+              },
+              text: "'",
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 25,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'z' : 'Z');
+              },
+              text: isUpperCaseFalse ? 'z' : 'Z',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 26,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'x' : 'X');
+              },
+              text: isUpperCaseFalse ? 'x' : 'X',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 27,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'c' : 'C');
+              },
+              text: isUpperCaseFalse ? 'c' : 'C',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 28,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'v' : 'V');
+              },
+              text: isUpperCaseFalse ? 'v' : 'V',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 29,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'b' : 'B');
+              },
+              text: isUpperCaseFalse ? 'b' : 'B',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 30,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'n' : 'N');
+              },
+              text: isUpperCaseFalse ? 'n' : 'N',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 31,
+              onTap: () {
+                _handleTextInput(isUpperCaseFalse ? 'm' : 'M');
+              },
+              text: isUpperCaseFalse ? 'm' : 'M',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 32,
+              onTap: () {
+                _handleTextInput('.');
+              },
+              text: '.',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+            checkTile(
+              index: 33,
+              onTap: () {
+                _handleTextInput(',');
+              },
+              text: ',',
+              height: height * 0.1,
+              width: width * 0.08,
+            ),
+          ]),
+        ),
         SizedBox(
           height: Adaptive.h(0.5),
         ),
@@ -3626,36 +1254,29 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
 
   Widget hebrewyKeyboard(double height, double width) {
     return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-        checkTile(
-          index: 41,
-          onTap: () {
-            _handleTextInput('1');
-          },
-          text: '1',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_41: 41,
-          index_42: 42,
-          index_1: 1,
-          index_2: 2,
-        ),
-        checkTile(
-          index: 42,
-          onTap: () {
-            _handleTextInput('2');
-          },
-          text: '2',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_41: 41,
-          index_42: 42,
-          index_43: 43,
-          index_1: 1,
-          index_2: 2,
-          index_3: 3,
-        ),
-        checkTile(
+      Container(
+        alignment: Alignment.center,
+        height: height * 0.1 + 30,
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          checkTile(
+            index: 41,
+            onTap: () {
+              _handleTextInput('1');
+            },
+            text: '1',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 42,
+            onTap: () {
+              _handleTextInput('2');
+            },
+            text: '2',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
             index: 43,
             onTap: () {
               _handleTextInput('3');
@@ -3663,13 +1284,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '3',
             height: height * 0.1,
             width: width * 0.08,
-            index_2: 2,
-            index_3: 3,
-            index_4: 4,
-            index_42: 42,
-            index_43: 43,
-            index_44: 44),
-        checkTile(
+          ),
+          checkTile(
             index: 44,
             onTap: () {
               _handleTextInput('4');
@@ -3677,13 +1293,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '4',
             height: height * 0.1,
             width: width * 0.08,
-            index_3: 3,
-            index_4: 4,
-            index_5: 5,
-            index_43: 43,
-            index_44: 44,
-            index_45: 45),
-        checkTile(
+          ),
+          checkTile(
             index: 45,
             onTap: () {
               _handleTextInput('5');
@@ -3691,13 +1302,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '5',
             height: height * 0.1,
             width: width * 0.08,
-            index_4: 4,
-            index_5: 5,
-            index_6: 6,
-            index_44: 44,
-            index_45: 45,
-            index_46: 46),
-        checkTile(
+          ),
+          checkTile(
             index: 46,
             onTap: () {
               _handleTextInput('6');
@@ -3705,13 +1311,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '6',
             height: height * 0.1,
             width: width * 0.08,
-            index_5: 5,
-            index_6: 6,
-            index_7: 7,
-            index_45: 45,
-            index_46: 46,
-            index_47: 47),
-        checkTile(
+          ),
+          checkTile(
             index: 47,
             onTap: () {
               _handleTextInput('7');
@@ -3719,13 +1320,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '7',
             height: height * 0.1,
             width: width * 0.08,
-            index_6: 6,
-            index_7: 7,
-            index_8: 8,
-            index_46: 46,
-            index_47: 47,
-            index_48: 48),
-        checkTile(
+          ),
+          checkTile(
             index: 48,
             onTap: () {
               _handleTextInput('8');
@@ -3733,13 +1329,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '8',
             height: height * 0.1,
             width: width * 0.08,
-            index_7: 7,
-            index_8: 8,
-            index_9: 9,
-            index_47: 47,
-            index_48: 48,
-            index_49: 49),
-        checkTile(
+          ),
+          checkTile(
             index: 49,
             onTap: () {
               _handleTextInput('9');
@@ -3747,13 +1338,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '9',
             height: height * 0.1,
             width: width * 0.08,
-            index_8: 8,
-            index_9: 9,
-            index_10: 10,
-            index_48: 48,
-            index_49: 49,
-            index_50: 50),
-        checkTile(
+          ),
+          checkTile(
             index: 50,
             onTap: () {
               _handleTextInput('0');
@@ -3761,14 +1347,9 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: '0',
             height: height * 0.1,
             width: width * 0.08,
-            index_11: 11,
-            index_9: 9,
-            index_10: 10,
-            index_49: 49,
-            index_50: 50,
-            index_51: 51),
+          ),
 
-        checkTile(
+          checkTile(
             index: 51,
             onTap: () {
               _clearInput();
@@ -3776,21 +1357,22 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: 'נקה',
             height: height * 0.1,
             width: width * 0.08,
-            index_11: 11,
-            index_10: 10,
-            index_50: 50,
-            index_51: 51),
+          ),
 
-        // checkTile(51, () {
-        //   //    setdsa();
-        //   // txtToSpeach();
-        //   _clearInput();
-        // }, 'נקה', height * 0.1, width * 0.08, 1, 11),
-      ]),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          checkTile(
+          // checkTile(51, () {
+          //   //    setdsa();
+          //   // txtToSpeach();
+          //   _clearInput();
+          // }, 'נקה', height * 0.1, width * 0.08, 1, 11),
+        ]),
+      ),
+      Container(
+        alignment: Alignment.center,
+        height: height * 0.1 + 30,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            checkTile(
               index: 1,
               onTap: () {
                 _handleTextInput(',');
@@ -3798,13 +1380,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: ',',
               height: height * 0.1,
               width: width * 0.08,
-              index_1: 1,
-              index_2: 2,
-              index_12: 12,
-              index_13: 13,
-              index_41: 41,
-              index_42: 42),
-          checkTile(
+            ),
+            checkTile(
               index: 2,
               onTap: () {
                 _handleTextInput("'");
@@ -3812,16 +1389,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: "'",
               height: height * 0.1,
               width: width * 0.08,
-              index_1: 1,
-              index_2: 2,
-              index_3: 3,
-              index_12: 12,
-              index_13: 13,
-              index_14: 14,
-              index_41: 41,
-              index_42: 42,
-              index_43: 43),
-          checkTile(
+            ),
+            checkTile(
               index: 3,
               onTap: () {
                 _handleTextInput('ק');
@@ -3829,16 +1398,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ק',
               height: height * 0.1,
               width: width * 0.08,
-              index_2: 2,
-              index_3: 3,
-              index_4: 4,
-              index_13: 13,
-              index_14: 14,
-              index_15: 15,
-              index_42: 42,
-              index_43: 43,
-              index_44: 44),
-          checkTile(
+            ),
+            checkTile(
               index: 4,
               onTap: () {
                 _handleTextInput('ר');
@@ -3846,17 +1407,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ר',
               height: height * 0.1,
               width: width * 0.08,
-              index_3: 3,
-              index_4: 4,
-              index_5: 5,
-              index_13: 13,
-              index_14: 14,
-              index_15: 15,
-              index_16: 16,
-              index_43: 43,
-              index_44: 44,
-              index_45: 45),
-          checkTile(
+            ),
+            checkTile(
               index: 5,
               onTap: () {
                 _handleTextInput('א');
@@ -3864,16 +1416,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'א',
               height: height * 0.1,
               width: width * 0.08,
-              index_4: 4,
-              index_5: 5,
-              index_6: 6,
-              index_15: 15,
-              index_16: 16,
-              index_17: 17,
-              index_44: 44,
-              index_45: 45,
-              index_46: 46),
-          checkTile(
+            ),
+            checkTile(
               index: 6,
               onTap: () {
                 _handleTextInput('ט');
@@ -3881,16 +1425,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ט',
               height: height * 0.1,
               width: width * 0.08,
-              index_5: 5,
-              index_6: 6,
-              index_7: 7,
-              index_16: 16,
-              index_17: 17,
-              index_18: 18,
-              index_45: 45,
-              index_46: 46,
-              index_47: 47),
-          checkTile(
+            ),
+            checkTile(
               index: 7,
               onTap: () {
                 _handleTextInput('ו');
@@ -3898,16 +1434,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ו',
               height: height * 0.1,
               width: width * 0.08,
-              index_6: 6,
-              index_7: 7,
-              index_8: 8,
-              index_17: 17,
-              index_18: 18,
-              index_19: 19,
-              index_46: 46,
-              index_47: 47,
-              index_48: 48),
-          checkTile(
+            ),
+            checkTile(
               index: 8,
               onTap: () {
                 _handleTextInput('ן');
@@ -3915,16 +1443,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ן',
               height: height * 0.1,
               width: width * 0.08,
-              index_7: 7,
-              index_8: 8,
-              index_9: 9,
-              index_18: 18,
-              index_19: 19,
-              index_20: 20,
-              index_47: 47,
-              index_48: 48,
-              index_49: 49),
-          checkTile(
+            ),
+            checkTile(
               index: 9,
               onTap: () {
                 _handleTextInput('ם');
@@ -3932,16 +1452,8 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'ם',
               height: height * 0.1,
               width: width * 0.08,
-              index_8: 8,
-              index_9: 9,
-              index_10: 10,
-              index_19: 19,
-              index_20: 20,
-              index_21: 21,
-              index_48: 48,
-              index_49: 49,
-              index_50: 50),
-          checkTile(
+            ),
+            checkTile(
               index: 10,
               onTap: () {
                 _handleTextInput('פ');
@@ -3949,48 +1461,33 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
               text: 'פ',
               height: height * 0.1,
               width: width * 0.08,
-              index_9: 9,
-              index_10: 10,
-              index_11: 11,
-              index_20: 20,
-              index_21: 21,
-              index_22: 22,
-              index_49: 49,
-              index_50: 50,
-              index_51: 51),
-          checkTile(
-              index: 11,
-              onTap: () {
-                removeLastCharater();
-              },
-              text: '✖',
-              height: height * 0.1,
-              width: width * 0.08,
-              index_10: 10,
-              index_11: 11,
-              index_21: 21,
-              index_22: 22,
-              index_50: 50,
-              index_51: 51),
-        ],
-      ),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-        checkTile(
-          index: 12,
-          onTap: () {
-            _handleTextInput('ש');
-          },
-          text: 'ש',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_1: 1,
-          index_2: 2,
-          index_12: 12,
-          index_13: 13,
-          index_23: 23,
-          index_24: 24,
+            ),
+            checkTile(
+                index: 11,
+                onTap: () {
+                  removeLastCharater();
+                },
+                text: '',
+                height: height * 0.1,
+                width: width * 0.08,
+                iconData: FontAwesomeIcons.deleteLeft),
+          ],
         ),
-        checkTile(
+      ),
+      Container(
+        alignment: Alignment.center,
+        height: height * 0.1 + 30,
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          checkTile(
+            index: 12,
+            onTap: () {
+              _handleTextInput('ש');
+            },
+            text: 'ש',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
             index: 13,
             onTap: () {
               _handleTextInput("ד");
@@ -3998,338 +1495,195 @@ class _KeyboardScreenState extends State<KeyboardScreen> {
             text: "ד",
             height: height * 0.1,
             width: width * 0.08,
-            index_1: 1,
-            index_2: 2,
-            index_3: 3,
-            index_12: 12,
-            index_13: 13,
-            index_14: 14,
-            index_23: 23,
-            index_24: 24,
-            index_25: 25),
-        checkTile(
-          index: 14,
-          onTap: () {
-            _handleTextInput("ג");
-          },
-          text: "ג",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_2: 2,
-          index_3: 3,
-          index_4: 4,
-          index_13: 13,
-          index_14: 14,
-          index_15: 15,
-          index_24: 24,
-          index_25: 25,
-          index_26: 26,
-        ),
-        checkTile(
-          index: 15,
-          onTap: () {
-            _handleTextInput("כ");
-          },
-          text: "כ",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_3: 3,
-          index_4: 4,
-          index_5: 5,
-          index_14: 14,
-          index_15: 15,
-          index_16: 16,
-          index_25: 25,
-          index_26: 26,
-          index_27: 27,
-        ),
-        checkTile(
-          index: 16,
-          onTap: () {
-            _handleTextInput("ע");
-          },
-          text: "ע",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_4: 4,
-          index_5: 5,
-          index_6: 6,
-          index_15: 15,
-          index_16: 16,
-          index_17: 17,
-          index_26: 26,
-          index_27: 27,
-          index_28: 28,
-        ),
-        checkTile(
-          index: 17,
-          onTap: () {
-            _handleTextInput("י");
-          },
-          text: "י",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_5: 5,
-          index_6: 6,
-          index_7: 7,
-          index_16: 16,
-          index_17: 17,
-          index_18: 18,
-          index_27: 27,
-          index_28: 28,
-          index_29: 29,
-        ),
-        checkTile(
-          index: 18,
-          onTap: () {
-            _handleTextInput("ח");
-          },
-          text: "ח",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_6: 6,
-          index_7: 7,
-          index_8: 8,
-          index_17: 17,
-          index_18: 18,
-          index_19: 19,
-          index_28: 28,
-          index_29: 29,
-          index_30: 30,
-        ),
-        checkTile(
-          index: 19,
-          onTap: () {
-            _handleTextInput("ל");
-          },
-          text: "ל",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_7: 7,
-          index_8: 8,
-          index_9: 9,
-          index_18: 18,
-          index_19: 19,
-          index_20: 20,
-          index_29: 29,
-          index_30: 30,
-          index_31: 31,
-        ),
-        checkTile(
-          index: 20,
-          onTap: () {
-            _handleTextInput("ך");
-          },
-          text: "ך",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_8: 8,
-          index_9: 9,
-          index_10: 10,
-          index_19: 19,
-          index_20: 20,
-          index_21: 21,
-          index_30: 30,
-          index_31: 31,
-          index_32: 32,
-        ),
-        checkTile(
-          index: 21,
-          onTap: () {
-            _handleTextInput('ף');
-          },
-          text: 'ף',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_9: 9,
-          index_10: 10,
-          index_11: 11,
-          index_20: 20,
-          index_21: 21,
-          index_22: 22,
-          index_31: 31,
-          index_32: 32,
-          index_33: 33,
-        ),
-        checkTile(
-          index: 22,
-          onTap: () {
-            _handleEnterButton();
-          },
-          text: '↵',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_10: 10,
-          index_11: 11,
-          index_21: 21,
-          index_22: 22,
-          index_32: 32,
-          index_33: 33,
-        ),
-      ]),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-        checkTile(
-          index: 23,
-          onTap: () {
-            _handleTextInput('?');
-          },
-          text: '?',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_12: 12,
-          index_13: 13,
-          index_23: 23,
-          index_24: 24,
-        ),
-        checkTile(
-          index: 24,
-          onTap: () {
-            _handleTextInput("ז");
-          },
-          text: "ז",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_12: 12,
-          index_13: 13,
-          index_14: 14,
-          index_23: 23,
-          index_24: 24,
-          index_25: 25,
-        ),
-        checkTile(
-          index: 25,
-          onTap: () {
-            _handleTextInput("ס");
-          },
-          text: "ס",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_13: 13,
-          index_14: 14,
-          index_15: 15,
-          index_24: 24,
-          index_25: 25,
-          index_26: 26,
-        ),
-        checkTile(
-          index: 26,
-          onTap: () {
-            _handleTextInput("ב");
-          },
-          text: "ב",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_14: 14,
-          index_15: 15,
-          index_16: 16,
-          index_25: 25,
-          index_26: 26,
-          index_27: 27,
-        ),
-        checkTile(
-          index: 27,
-          onTap: () {
-            _handleTextInput("ה");
-          },
-          text: "ה",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_15: 15,
-          index_16: 16,
-          index_17: 17,
-          index_26: 26,
-          index_27: 27,
-          index_28: 28,
-        ),
-        checkTile(
-          index: 28,
-          onTap: () {
-            _handleTextInput("נ");
-          },
-          text: "נ",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_16: 16,
-          index_17: 17,
-          index_18: 18,
-          index_27: 27,
-          index_28: 28,
-          index_29: 29,
-        ),
-        checkTile(
-          index: 29,
-          onTap: () {
-            _handleTextInput("מ");
-          },
-          text: "מ",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_17: 17,
-          index_18: 18,
-          index_19: 19,
-          index_28: 28,
-          index_29: 29,
-          index_30: 30,
-        ),
-        checkTile(
-          index: 30,
-          onTap: () {
-            _handleTextInput("צ");
-          },
-          text: "צ",
-          height: height * 0.1,
-          width: width * 0.08,
-          index_18: 18,
-          index_19: 19,
-          index_20: 20,
-          index_29: 29,
-          index_30: 30,
-          index_31: 31,
-        ),
-        checkTile(
-          index: 31,
-          onTap: () {
-            _handleTextInput('ת');
-          },
-          text: 'ת',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_19: 19,
-          index_20: 20,
-          index_21: 21,
-          index_30: 30,
-          index_31: 31,
-          index_32: 32,
-        ),
-        checkTile(
-          index: 32,
-          onTap: () {
-            _handleTextInput('ץ');
-          },
-          text: 'ץ',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_20: 20,
-          index_21: 21,
-          index_22: 22,
-          index_31: 31,
-          index_32: 32,
-          index_33: 33,
-        ),
-        checkTile(
-          index: 33,
-          onTap: () {
-            _handleTextInput('.');
-          },
-          text: '.',
-          height: height * 0.1,
-          width: width * 0.08,
-          index_21: 21,
-          index_22: 22,
-          index_32: 32,
-          index_33: 33,
-        ),
-      ]),
+          ),
+          checkTile(
+            index: 14,
+            onTap: () {
+              _handleTextInput("ג");
+            },
+            text: "ג",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 15,
+            onTap: () {
+              _handleTextInput("כ");
+            },
+            text: "כ",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 16,
+            onTap: () {
+              _handleTextInput("ע");
+            },
+            text: "ע",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 17,
+            onTap: () {
+              _handleTextInput("י");
+            },
+            text: "י",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 18,
+            onTap: () {
+              _handleTextInput("ח");
+            },
+            text: "ח",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 19,
+            onTap: () {
+              _handleTextInput("ל");
+            },
+            text: "ל",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 20,
+            onTap: () {
+              _handleTextInput("ך");
+            },
+            text: "ך",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 21,
+            onTap: () {
+              _handleTextInput('ף');
+            },
+            text: 'ף',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+              index: 22,
+              onTap: () {
+                _handleEnterButton();
+              },
+              text: '↵',
+              height: height * 0.1,
+              width: width * 0.08,
+              iconData: Icons.subdirectory_arrow_left_rounded),
+        ]),
+      ),
+      Container(
+        alignment: Alignment.center,
+        height: height * 0.1 + 30,
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          checkTile(
+            index: 23,
+            onTap: () {
+              _handleTextInput('?');
+            },
+            text: '?',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 24,
+            onTap: () {
+              _handleTextInput("ז");
+            },
+            text: "ז",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 25,
+            onTap: () {
+              _handleTextInput("ס");
+            },
+            text: "ס",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 26,
+            onTap: () {
+              _handleTextInput("ב");
+            },
+            text: "ב",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 27,
+            onTap: () {
+              _handleTextInput("ה");
+            },
+            text: "ה",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 28,
+            onTap: () {
+              _handleTextInput("נ");
+            },
+            text: "נ",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 29,
+            onTap: () {
+              _handleTextInput("מ");
+            },
+            text: "מ",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 30,
+            onTap: () {
+              _handleTextInput("צ");
+            },
+            text: "צ",
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 31,
+            onTap: () {
+              _handleTextInput('ת');
+            },
+            text: 'ת',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 32,
+            onTap: () {
+              _handleTextInput('ץ');
+            },
+            text: 'ץ',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+          checkTile(
+            index: 33,
+            onTap: () {
+              _handleTextInput('.');
+            },
+            text: '.',
+            height: height * 0.1,
+            width: width * 0.08,
+          ),
+        ]),
+      ),
 
       SizedBox(
         height: Adaptive.h(0.5),
